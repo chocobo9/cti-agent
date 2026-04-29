@@ -1,0 +1,11 @@
+# Unified runtime dependencies for Session A + B + C
+neo4j>=5.0,<6.0
+pydantic>=2.7
+pydantic-settings>=2.3
+httpx>=0.27
+dnspython>=2.6
+mmh3>=4.0
+geoip2>=4.8
+
+# Optional: JARM scanner support
+# jarm>=0.0.4
