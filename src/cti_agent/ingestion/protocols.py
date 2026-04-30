@@ -29,6 +29,10 @@ class GraphRepository(Protocol):
         first_seen: datetime,
         last_seen: datetime,
         decay_score: float,
+        source: str | None = None,
+        actor: str | None = None,
+        family: str | None = None,
+        shared_infrastructure: bool = False,
     ) -> None: ...
 
     def merge_certificate(

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 
 from cti_agent.ingestion.models import DomainEnrichment
 from cti_agent.ingestion.utils import compute_cert_key, compute_reg_length, detect_ip_version
+from cti_agent.models import DomainInput
 
 
 @dataclass(frozen=True)
@@ -22,14 +23,18 @@ class DomainProps:
     first_seen: datetime
     last_seen: datetime
     decay_score: float
+    source: str | None = None
+    actor: str | None = None
+    family: str | None = None
+    shared_infrastructure: bool = False
 
 
 @dataclass(frozen=True)
 class CertificateOp:
     key: str
     issuer: str
-    not_before: datetime
-    not_after: datetime
+    not_before: date | None
+    not_after: date | None
     san_list: list[str]
     san_count: int
 
@@ -65,7 +70,10 @@ class AsnOp:
     ip_addresses: list[str] = field(default_factory=list)
 
 
-def map_domain_props(enrichment: DomainEnrichment) -> DomainProps:
+def map_domain_props(
+    enrichment: DomainEnrichment,
+    metadata: DomainInput | None = None,
+) -> DomainProps:
     return DomainProps(
         name=enrichment.domain,
         tld=enrichment.tld,
@@ -80,6 +88,10 @@ def map_domain_props(enrichment: DomainEnrichment) -> DomainProps:
         first_seen=enrichment.enriched_at,
         last_seen=enrichment.enriched_at,
         decay_score=1.0,
+        source=metadata.source if metadata else None,
+        actor=metadata.actor if metadata else None,
+        family=metadata.family if metadata else None,
+        shared_infrastructure=metadata.shared_infrastructure if metadata else False,
     )
 
 
@@ -87,7 +99,14 @@ def map_certificate_ops(enrichment: DomainEnrichment) -> list[CertificateOp]:
     ops: list[CertificateOp] = []
     for cert in enrichment.certificates:
         key = compute_cert_key(cert.fingerprint, cert.serial_number, cert.issuer)
-        ops.append(CertificateOp(key=key, issuer=cert.issuer, not_before=cert.not_before, not_after=cert.not_after, san_list=list(cert.san_list), san_count=len(cert.san_list)))
+        ops.append(CertificateOp(
+            key=key,
+            issuer=cert.issuer,
+            not_before=cert.not_before.date() if isinstance(cert.not_before, datetime) else cert.not_before,
+            not_after=cert.not_after.date() if isinstance(cert.not_after, datetime) else cert.not_after,
+            san_list=list(cert.san_list),
+            san_count=len(cert.san_list),
+        ))
     return ops
 
 

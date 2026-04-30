@@ -5,7 +5,9 @@ from typing import Any
 from cti_agent.graph.client import Neo4jClient
 
 QUERY_FULL_ATTRIBUTION_PATH = """
-MATCH (d:Domain {name: $domain_name})-[:RESOLVES_TO]->(ip:IP)-[:BELONGS_TO]->(asn:ASN)
+MATCH (d:Domain {name: $domain_name})
+OPTIONAL MATCH (d)-[:RESOLVES_TO]->(ip:IP)
+OPTIONAL MATCH (ip)-[:BELONGS_TO]->(asn:ASN)
 OPTIONAL MATCH (d)-[:HAS_CERTIFICATE]->(cert:Certificate)
 OPTIONAL MATCH (d)-[:HAS_JARM]->(jarm:JARMFingerprint)
 OPTIONAL MATCH (d)-[:HAS_FAVICON]->(fav:FaviconHash)

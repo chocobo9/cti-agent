@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     batch_concurrency: int = 10
     dns_resolver: str = "8.8.8.8"
     user_agent: str = "CTI-Agent-Enrichment/0.1"
+    crtsh_rate_limit: float = 5.0
+    otx_rate_limit: float = 10.0
+    rdap_rate_limit: float = 5.0
+    jarm_concurrency_limit: int = 5
+    favicon_concurrency_limit: int = 10
 
 
 @lru_cache(maxsize=1)

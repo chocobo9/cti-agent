@@ -40,6 +40,10 @@ class DomainNode(_NodeBase):
     first_seen: datetime | None = None
     last_seen: datetime | None = None
     decay_score: float = 1.0
+    source: str | None = None
+    actor: str | None = None
+    family: str | None = None
+    shared_infrastructure: bool = False
 
 
 class IPNode(_NodeBase):
