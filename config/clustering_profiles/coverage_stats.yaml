@@ -1,0 +1,27 @@
+coverage_stats:
+  generated_at: '2026-05-01T03:51:06.473880+00:00'
+  source_dir: data/enrichment
+  total_domains: 556
+  skipped_files: 0
+  features:
+    domain_string:
+      count: 556
+      rate: 1.0
+    registration_time:
+      count: 137
+      rate: 0.2464
+    tls_certificate:
+      count: 197
+      rate: 0.3543
+    jarm:
+      count: 0
+      rate: 0.0
+    favicon:
+      count: 26
+      rate: 0.0468
+    passive_dns:
+      count: 521
+      rate: 0.9371
+    asn_geo:
+      count: 404
+      rate: 0.7266

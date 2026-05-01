@@ -4,7 +4,7 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 
-from cti_agent.enrichment.config import get_settings
+from cti_agent.enrichment.config import ALL_SOURCES, get_settings
 from cti_agent.enrichment.ct_logs import query_crt_sh
 from cti_agent.enrichment.domain_features import compute_domain_string_features
 from cti_agent.enrichment.favicon import get_favicon_hash
@@ -23,6 +23,17 @@ from cti_agent.enrichment.rate_limit import RateLimitedSession
 from cti_agent.enrichment.rdap import query_rdap
 
 logger = logging.getLogger(__name__)
+
+
+def _is_valid_ip(value: str) -> bool:
+    """Return True if *value* is a routable IP address (not a hostname or sentinel)."""
+    import ipaddress
+
+    try:
+        addr = ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    return not addr.is_unspecified
 
 
 def _source_status(enrichment: DomainEnrichment) -> str:
@@ -49,7 +60,9 @@ def _source_status(enrichment: DomainEnrichment) -> str:
 async def enrich_domain(
     domain: str,
     rate_limiter: RateLimitedSession | None = None,
+    sources: frozenset[str] | None = None,
 ) -> DomainEnrichment:
+    enabled = sources if sources is not None else ALL_SOURCES
     errors: dict[str, str] = {}
 
     async def _crtsh() -> list[CertificateInfo]:
@@ -82,13 +95,27 @@ async def enrich_domain(
                 return await query_rdap(domain)
         return await query_rdap(domain)
 
+    async def _noop_list() -> list:
+        return []
+
+    async def _noop_none() -> None:
+        return None
+
+    async def _noop_rdap() -> RdapResult:
+        return RdapResult()
+
+    async def _noop_dns() -> DnsQueryResult:
+        return DnsQueryResult()
+
+    run_dns = "pdns" in enabled or "geoip" in enabled
+
     results = await asyncio.gather(
-        _crtsh(),
-        _jarm(),
-        _favicon(),
-        _pdns(),
-        _rdap(),
-        query_dns_records(domain),
+        _crtsh() if "crtsh" in enabled else _noop_list(),
+        _jarm() if "jarm" in enabled else _noop_none(),
+        _favicon() if "favicon" in enabled else _noop_none(),
+        _pdns() if "pdns" in enabled else _noop_list(),
+        _rdap() if "rdap" in enabled else _noop_rdap(),
+        query_dns_records(domain) if run_dns else _noop_dns(),
         return_exceptions=True,
     )
 
@@ -108,14 +135,14 @@ async def enrich_domain(
 
     all_ips: list[str] = []
     for record in passive_dns:
-        if record.ip not in all_ips:
+        if record.ip not in all_ips and _is_valid_ip(record.ip):
             all_ips.append(record.ip)
     for ip in dns_result.current_ips:
-        if ip not in all_ips:
+        if ip not in all_ips and _is_valid_ip(ip):
             all_ips.append(ip)
 
     geoip: list[GeoIPInfo] = []
-    if all_ips:
+    if all_ips and "geoip" in enabled:
         try:
             geoip = lookup_geoip_batch(all_ips)
         except Exception as exc:
@@ -148,6 +175,7 @@ async def enrich_domain(
 async def enrich_batch(
     domains: list[str],
     concurrency: int | None = None,
+    sources: frozenset[str] | None = None,
 ) -> list[DomainEnrichment]:
     settings = get_settings()
     sem = asyncio.Semaphore(concurrency or settings.batch_concurrency)
@@ -164,7 +192,7 @@ async def enrich_batch(
     async def _limited(domain: str) -> DomainEnrichment:
         nonlocal completed
         async with sem:
-            result = await enrich_domain(domain, rate_limiter=rate_limiter)
+            result = await enrich_domain(domain, rate_limiter=rate_limiter, sources=sources)
         completed += 1
         logger.info(
             "[%d/%d] %s — %s",

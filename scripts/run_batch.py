@@ -21,12 +21,18 @@ Usage:
     # Subsequent runs (schema already exists):
     python -m scripts.run_batch data/raw/domains.jsonl
 
+    # Re-enrich only specific sources (skip the rest):
+    python -m scripts.run_batch data/raw/domains.jsonl --sources crtsh,rdap
+    python -m scripts.run_batch data/raw/domains.jsonl --sources geoip,pdns
+
+    # Available sources: crtsh, jarm, favicon, pdns, rdap, geoip
+
     # Custom output directory and concurrency:
     python -m scripts.run_batch data/raw/domains.jsonl --output-dir data/enrichment --concurrency 5 --batch-size 25
 
     # Run from WSL (recommended on Windows):
     cd /mnt/d/proj/agent/cti-agent
-    source /mnt/d/proj/agent/agent-venv/bin/activate
+    source agent-venv/bin/activate
     python -m scripts.run_batch data/raw/domains.jsonl --init-schema
 
 Options:
@@ -35,6 +41,7 @@ Options:
     --concurrency N         Max concurrent domain enrichments (default: 10)
     --batch-size N          Neo4j ingestion transaction batch size (default: 50)
     --init-schema           Create Neo4j constraints and indexes before running
+    --sources SRC,SRC,...   Comma-separated list of sources to enrich (default: all)
 
 Output:
     - Per-domain enrichment JSON saved to {output-dir}/{domain}.json
@@ -49,11 +56,15 @@ import argparse
 import asyncio
 import logging
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
+from cti_agent.enrichment.config import ALL_SOURCES
 from cti_agent.graph.config import Neo4jSettings, get_settings
 from cti_agent.graph.schema import init_schema
 from cti_agent.pipeline import run_batch_pipeline
+
+LOG_DIR = Path("data/logs")
 
 
 def _parse_args() -> argparse.Namespace:
@@ -63,20 +74,56 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--concurrency", type=int, default=10, help="Max concurrent domain enrichments")
     parser.add_argument("--batch-size", type=int, default=50, help="Neo4j ingestion batch size")
     parser.add_argument("--init-schema", action="store_true", help="Initialize Neo4j schema before running")
+    parser.add_argument(
+        "--sources",
+        type=str,
+        default=None,
+        help=f"Comma-separated enrichment sources to run (default: all). Available: {','.join(sorted(ALL_SOURCES))}",
+    )
     return parser.parse_args()
+
+
+def _setup_logging() -> Path:
+    """Configure logging to both console and a timestamped log file."""
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    log_file = LOG_DIR / f"batch_{timestamp}.log"
+
+    fmt = "%(asctime)s %(levelname)-7s %(name)s — %(message)s"
+    datefmt = "%Y-%m-%d %H:%M:%S"
+
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+
+    console = logging.StreamHandler()
+    console.setFormatter(logging.Formatter(fmt, datefmt=datefmt))
+    root.addHandler(console)
+
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setFormatter(logging.Formatter(fmt, datefmt=datefmt))
+    root.addHandler(file_handler)
+
+    return log_file
 
 
 async def _main() -> int:
     args = _parse_args()
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)-7s %(name)s — %(message)s",
-        datefmt="%H:%M:%S",
-    )
+    log_file = _setup_logging()
+    logging.info("Log file: %s", log_file)
 
     if not args.input_file.exists():
         logging.error("Input file not found: %s", args.input_file)
         return 1
+
+    sources: frozenset[str] | None = None
+    if args.sources:
+        raw = frozenset(s.strip().lower() for s in args.sources.split(",") if s.strip())
+        invalid = raw - ALL_SOURCES
+        if invalid:
+            logging.error("Unknown sources: %s. Available: %s", ",".join(invalid), ",".join(sorted(ALL_SOURCES)))
+            return 1
+        sources = raw
+        logging.info("Enrichment sources limited to: %s", ", ".join(sorted(sources)))
 
     settings = get_settings()
 
@@ -92,6 +139,7 @@ async def _main() -> int:
         neo4j_settings=settings,
         concurrency=args.concurrency,
         batch_size=args.batch_size,
+        sources=sources,
     )
 
     if report.completely_failed == report.total_domains and report.total_domains > 0:

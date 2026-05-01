@@ -16,6 +16,7 @@ from pathlib import Path
 
 from cti_agent.batch_report import BatchReport
 from cti_agent.enrichment import enrich_batch, enrich_domain
+from cti_agent.enrichment.config import SOURCE_FIELDS
 from cti_agent.enrichment.models import DomainEnrichment
 from cti_agent.graph.client import Neo4jClient
 from cti_agent.graph.config import Neo4jSettings, get_settings
@@ -31,6 +32,57 @@ _UNSAFE_PATH_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
 def _sanitize_filename(domain: str) -> str:
     return _UNSAFE_PATH_RE.sub("_", domain)
+
+
+def _merge_with_existing(
+    enrichments: list[DomainEnrichment],
+    output_dir: Path,
+    sources: frozenset[str],
+) -> list[DomainEnrichment]:
+    """Merge partial re-enrichment results with existing JSON files.
+
+    Only fields belonging to the selected sources are taken from the new
+    enrichment; all other fields are preserved from the existing file.
+    """
+    refreshed_fields: set[str] = set()
+    for src in sources:
+        refreshed_fields.update(SOURCE_FIELDS.get(src, []))
+
+    merged: list[DomainEnrichment] = []
+    for enrichment in enrichments:
+        filename = _sanitize_filename(enrichment.domain) + ".json"
+        existing_path = output_dir / filename
+        if not existing_path.exists():
+            merged.append(enrichment)
+            continue
+
+        try:
+            old_data = json.loads(existing_path.read_text(encoding="utf-8"))
+        except Exception:
+            merged.append(enrichment)
+            continue
+
+        new_data = enrichment.model_dump_json_compatible()
+        for field in new_data:
+            if field in ("domain", "enriched_at", "errors", "domain_length", "domain_entropy", "tld"):
+                continue
+            if field not in refreshed_fields:
+                new_data[field] = old_data.get(field, new_data[field])
+
+        old_errors = old_data.get("errors", {})
+        new_errors = new_data.get("errors", {})
+        for src in sources:
+            error_keys = {"crtsh": "ct_logs", "pdns": "passive_dns"}.get(src, src)
+            old_errors.pop(error_keys, None)
+        old_errors.update(new_errors)
+        new_data["errors"] = old_errors
+
+        try:
+            merged.append(DomainEnrichment.model_validate(new_data))
+        except Exception:
+            merged.append(enrichment)
+
+    return merged
 
 
 def save_enrichment_json(
@@ -94,6 +146,7 @@ async def run_batch_pipeline(
     neo4j_settings: Neo4jSettings | None = None,
     concurrency: int | None = None,
     batch_size: int = 50,
+    sources: frozenset[str] | None = None,
 ) -> BatchReport:
     """Full M1 batch pipeline: file input -> enrich -> persist JSON -> ingest -> report."""
     start = time.monotonic()
@@ -107,7 +160,10 @@ async def run_batch_pipeline(
     domains = [inp.domain for inp in inputs]
     metadata_map = {inp.domain: inp for inp in inputs}
 
-    enrichments = await enrich_batch(domains, concurrency=concurrency)
+    enrichments = await enrich_batch(domains, concurrency=concurrency, sources=sources)
+
+    if sources is not None:
+        enrichments = _merge_with_existing(enrichments, output_dir, sources)
 
     for enrichment in enrichments:
         try:
@@ -126,6 +182,6 @@ async def run_batch_pipeline(
         )
 
     duration = time.monotonic() - start
-    report = BatchReport.from_results(enrichments, ingest_report, duration)
+    report = BatchReport.from_results(enrichments, ingest_report, duration, sources=sources)
     report.print_summary()
     return report

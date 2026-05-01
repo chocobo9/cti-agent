@@ -1,7 +1,8 @@
 """Step 2.1: Actor Name Normalization using MITRE ATT&CK STIX data.
 
 Reads the raw OTX CSV and normalizes actor names to MITRE preferred names
-using the alias mappings from enterprise-attack.json.
+using the alias mappings from enterprise-attack.json, with manual overrides
+for known MITRE duplicates and OTX-specific issues.
 
 Usage:
     cd /mnt/d/proj/agent/cti-agent
@@ -14,7 +15,7 @@ Inputs:
 
 Outputs:
     data/dataset/otx_normalized.csv      OTX CSV with normalized actor names
-    data/dataset/normalization_log.json   Mapping of original → normalized names
+    data/dataset/normalization_log.json   Mapping of original -> normalized names
     data/dataset/actor_distribution.csv   Per-actor domain counts (sorted desc)
 """
 
@@ -22,6 +23,8 @@ from __future__ import annotations
 
 import csv
 import json
+import random
+from datetime import datetime, timezone
 import re
 from collections import Counter
 from pathlib import Path
@@ -38,6 +41,22 @@ OUTPUT_DIST = DATA_DATASET / "actor_distribution.csv"
 
 APT_SPACE_RE = re.compile(r"^(APT)\s+(\d+)$", re.IGNORECASE)
 
+NOISE_ACTORS = frozenset({"[Unnamed group]", "Unnamed Actor", "Hacking Team", "Group5"})
+
+# MITRE has duplicate entries that cause mapping conflicts. These overrides
+# ensure consolidation to the preferred group ID:
+#   G0058 "Charming Kitten" (standalone) should merge into G0059 "Magic Hound"
+#   "Sandworm" (bare name) should map to G0034 "Sandworm Team"
+#   "Turla Group" should map to G0010 "Turla"
+MANUAL_OVERRIDES: dict[str, str] = {
+    "charming kitten": "Magic Hound",
+    "sandworm": "Sandworm Team",
+    "turla group": "Turla",
+}
+
+ANOMALY_ACTORS = ["Hacking Team", "Group5"]
+ANOMALY_SAMPLE_SIZE = 10
+
 
 def build_mitre_alias_map(stix_path: Path) -> dict[str, str]:
     """Parse MITRE STIX JSON and build lowercase-alias to primary-name map."""
@@ -53,6 +72,7 @@ def build_mitre_alias_map(stix_path: Path) -> dict[str, str]:
             key = alias.strip().lower()
             alias_to_primary[key] = primary
 
+    alias_to_primary.update(MANUAL_OVERRIDES)
     return alias_to_primary
 
 
@@ -83,8 +103,9 @@ def run_normalization() -> None:
     print("Loading MITRE ATT&CK STIX data...")
     alias_map = build_mitre_alias_map(MITRE_STIX_PATH)
     print(f"  Built alias map: {len(alias_map)} aliases -> intrusion-sets")
+    print(f"  Manual overrides applied: {list(MANUAL_OVERRIDES.values())}")
 
-    print(f"Loading OTX CSV from {OTX_CSV_PATH}...")
+    print(f"\nLoading OTX CSV from {OTX_CSV_PATH}...")
     rows: list[dict[str, str]] = []
     with open(OTX_CSV_PATH, encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -92,6 +113,13 @@ def run_normalization() -> None:
             rows.append(row)
     print(f"  Loaded {len(rows)} rows")
 
+    # --- Noise exclusion ---
+    noise_count = sum(1 for r in rows if r["actor"].strip() in NOISE_ACTORS)
+    rows = [r for r in rows if r["actor"].strip() not in NOISE_ACTORS]
+    print(f"  Excluded {noise_count} rows from noise actors: {sorted(NOISE_ACTORS)}")
+    print(f"  Remaining: {len(rows)} rows")
+
+    # --- Normalization ---
     original_actors: set[str] = set()
     mapped_names: dict[str, str] = {}
     unmapped_names: set[str] = set()
@@ -122,6 +150,7 @@ def run_normalization() -> None:
         normalized_actors.add(row["actor"])
         actor_counter[row["actor"]] += 1
 
+    # --- Write normalized CSV ---
     fieldnames = ["domain", "actor", "actor_original", "pulse_id", "pulse_name", "created"]
     with open(OUTPUT_CSV, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -130,10 +159,18 @@ def run_normalization() -> None:
             writer.writerow({k: row.get(k, "") for k in fieldnames})
     print(f"\nWrote normalized CSV: {OUTPUT_CSV} ({len(normalized_rows)} rows)")
 
+    # --- Write normalization log ---
     log = {
+        "generated_at": datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z"),
         "total_original_actors": len(original_actors),
         "total_normalized_actors": len(normalized_actors),
         "actors_consolidated": len(original_actors) - len(normalized_actors),
+        "noise_excluded": sorted(NOISE_ACTORS),
+        "noise_rows_removed": noise_count,
+        "manual_overrides": MANUAL_OVERRIDES,
         "mitre_mapped_count": len(mapped_names),
         "unmapped_count": len(unmapped_names),
         "mapped": dict(sorted(mapped_names.items())),
@@ -143,6 +180,7 @@ def run_normalization() -> None:
         json.dump(log, f, indent=2)
     print(f"Wrote normalization log: {OUTPUT_LOG}")
 
+    # --- Write actor distribution ---
     with open(OUTPUT_DIST, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["actor", "domain_count", "viable_ge20"])
@@ -150,9 +188,13 @@ def run_normalization() -> None:
             writer.writerow([actor, count, count >= 20])
     print(f"Wrote actor distribution: {OUTPUT_DIST}")
 
+    # --- Print summary ---
     print("\n" + "=" * 70)
-    print("ACTOR NORMALIZATION SUMMARY")
+    print("ACTOR NORMALIZATION SUMMARY (v2 — with overrides + noise removal)")
     print("=" * 70)
+    print(f"Original rows loaded:      {len(rows) + noise_count}")
+    print(f"Noise rows removed:        {noise_count}")
+    print(f"Rows after cleaning:       {len(normalized_rows)}")
     print(f"Original unique actors:    {len(original_actors)}")
     print(f"Normalized unique actors:  {len(normalized_actors)}")
     print(f"Actors consolidated:       {len(original_actors) - len(normalized_actors)}")
@@ -161,10 +203,10 @@ def run_normalization() -> None:
 
     viable = [(a, c) for a, c in actor_counter.most_common() if c >= 20]
     print(f"\nViable actors (>=20 domains): {len(viable)}")
-    print(f"{'Actor':<30s} {'Domains':>8s}")
-    print("-" * 40)
+    print(f"{'Actor':<30s} {'Domains':>8s}  {'Viable':>6s}")
+    print("-" * 48)
     for actor, count in viable:
-        print(f"{actor:<30s} {count:>8d}")
+        print(f"{actor:<30s} {count:>8d}  {'Yes':>6s}")
 
     total_viable_domains = sum(c for _, c in viable)
     print(f"\nTotal domains in viable actors: {total_viable_domains}")
@@ -173,6 +215,19 @@ def run_normalization() -> None:
     for original, normalized in sorted(mapped_names.items()):
         count = actor_counter.get(normalized, 0)
         print(f"  {original:<30s} -> {normalized:<30s} ({count} domains)")
+
+    # --- Anomaly sampling ---
+    print("\n" + "=" * 70)
+    print("ANOMALOUS ACTOR SAMPLE REPORT (for manual investigation)")
+    print("=" * 70)
+    rng = random.Random(42)
+    for anomaly_actor in ANOMALY_ACTORS:
+        anomaly_rows = [r for r in normalized_rows if r["actor"] == anomaly_actor]
+        sample = rng.sample(anomaly_rows, min(ANOMALY_SAMPLE_SIZE, len(anomaly_rows)))
+        print(f"\n{anomaly_actor} ({len(anomaly_rows)} domains) — {ANOMALY_SAMPLE_SIZE} random samples:")
+        for r in sample:
+            pulse = r.get("pulse_name", "")[:80]
+            print(f"  {r['domain']:<40s} | {pulse}")
 
 
 if __name__ == "__main__":

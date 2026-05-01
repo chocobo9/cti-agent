@@ -16,6 +16,8 @@ dependencies = [
     "mmh3>=4.0",
     "geoip2>=4.8",
     "aiolimiter>=1.1",
+    "rapidfuzz>=3.0",
+    "pyyaml>=6.0",
 ]
 
 [tool.setuptools]
