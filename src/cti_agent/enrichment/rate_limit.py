@@ -6,7 +6,7 @@ variables (see enrichment/config.py):
 
     CRTSH_RATE_LIMIT=5.0       # crt.sh: max requests/second
     OTX_RATE_LIMIT=10.0        # OTX pDNS: max requests/second
-    RDAP_RATE_LIMIT=5.0        # RDAP: max requests/second
+    RDAP_RATE_LIMIT=1.0        # RDAP: max requests/second
     JARM_CONCURRENCY_LIMIT=5   # JARM: max concurrent active scans
     FAVICON_CONCURRENCY_LIMIT=10  # Favicon: max concurrent HTTP fetches
 """

@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     user_agent: str = "CTI-Agent-Enrichment/0.1"
     crtsh_rate_limit: float = 1.0
     otx_rate_limit: float = 10.0
-    rdap_rate_limit: float = 2.0
+    rdap_rate_limit: float = 1.0
     jarm_concurrency_limit: int = 5
     favicon_concurrency_limit: int = 10
 

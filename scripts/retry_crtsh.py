@@ -58,16 +58,17 @@ def _setup_logging() -> Path:
     return log_file
 
 
-def find_failed_domains(enrichment_dir: Path) -> list[Path]:
-    """Find enrichment JSONs that have a ct_logs error."""
-    failed: list[Path] = []
+def find_domains_needing_crtsh(enrichment_dir: Path) -> list[Path]:
+    """Find enrichment JSONs that need crt.sh data: either has a ct_logs error or has no certificates at all."""
+    need_query: list[Path] = []
     for json_path in sorted(enrichment_dir.glob("*.json")):
         with open(json_path, encoding="utf-8") as f:
             data = json.load(f)
-        errors = data.get("errors", {})
-        if "ct_logs" in errors:
-            failed.append(json_path)
-    return failed
+        if "ct_logs" in data.get("errors", {}):
+            need_query.append(json_path)
+        elif not data.get("certificates"):
+            need_query.append(json_path)
+    return need_query
 
 
 async def query_crtsh_single(domain: str, timeout: float = 30.0) -> list[dict]:
@@ -139,13 +140,13 @@ async def retry_domain(
     return False
 
 
-async def run_retry(delay: float = 3.0, max_retries: int = 3) -> None:
+async def run_retry(delay: float = 3.0, max_retries: int = 5) -> None:
     log_file = _setup_logging()
     logging.info("Log file: %s", log_file)
     logging.info("Settings: delay=%.1fs, max_retries=%d", delay, max_retries)
 
-    failed_paths = find_failed_domains(ENRICHMENT_DIR)
-    logging.info("Found %d domains with crt.sh errors", len(failed_paths))
+    failed_paths = find_domains_needing_crtsh(ENRICHMENT_DIR)
+    logging.info("Found %d domains needing crt.sh query", len(failed_paths))
 
     if not failed_paths:
         logging.info("Nothing to retry.")
@@ -184,7 +185,7 @@ async def run_retry(delay: float = 3.0, max_retries: int = 3) -> None:
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Retry failed crt.sh queries sequentially")
     parser.add_argument("--delay", type=float, default=3.0, help="Seconds between requests (default: 3.0)")
-    parser.add_argument("--max-retries", type=int, default=3, help="Max retry attempts per domain (default: 3)")
+    parser.add_argument("--max-retries", type=int, default=5, help="Max retry attempts per domain (default: 5)")
     return parser.parse_args()
 
 

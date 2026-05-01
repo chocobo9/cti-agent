@@ -43,6 +43,9 @@ class DomainInput(BaseModel):
     actor: str | None = None
     family: str | None = None
     shared_infrastructure: bool = False
+    group: str | None = None
+    pulse_id: str | None = None
+    first_seen: str | None = None
 
 
 def load_domains_from_file(path: Path) -> list[DomainInput]:

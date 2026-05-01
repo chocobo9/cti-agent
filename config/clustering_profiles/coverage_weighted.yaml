@@ -9,25 +9,25 @@ profiles:
         enabled: true
       registration_time:
         weight: 1.0
-        coverage_rate: 0.2464
+        coverage_rate: 0.2239
         enabled: true
       tls_certificate:
         weight: 1.0
-        coverage_rate: 0.3543
+        coverage_rate: 0.3102
         enabled: true
       jarm:
         weight: 1.0
         coverage_rate: 0.0
-        enabled: true
+        enabled: false
       favicon:
         weight: 1.0
-        coverage_rate: 0.0468
+        coverage_rate: 0.0522
         enabled: true
       passive_dns:
         weight: 1.0
-        coverage_rate: 0.9371
+        coverage_rate: 0.9563
         enabled: true
       asn_geo:
         weight: 1.0
-        coverage_rate: 0.7266
+        coverage_rate: 0.7783
         enabled: true

@@ -18,6 +18,8 @@ dependencies = [
     "aiolimiter>=1.1",
     "rapidfuzz>=3.0",
     "pyyaml>=6.0",
+    "numpy>=1.26",
+    "scikit-learn>=1.4",
 ]
 
 [tool.setuptools]
@@ -27,6 +29,7 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.pytest.ini_options]
+addopts = "-m 'not integration'"
 markers = [
-    "integration: tests that require external services such as Neo4j",
+    "integration: tests that require external services such as Neo4j (WIPES DATABASE — run only with: pytest -m integration)",
 ]
