@@ -15,7 +15,7 @@ __pycache__/
 Thumbs.db
 
 .env
-.env.example
+
 tests/
 
 *.egg-info/
@@ -24,3 +24,4 @@ data/
 mds/
 achieved/
 tasks_achieved/
+temp_*.py

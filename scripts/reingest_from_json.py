@@ -57,9 +57,15 @@ def main() -> int:
         metadata_map = {inp.domain: inp for inp in inputs}
         logger.info("Loaded %d ground truth entries from %s", len(metadata_map), args.dataset)
 
+    dataset_domains = set(metadata_map.keys()) if metadata_map else None
+
     enrichments: list[DomainEnrichment] = []
     skipped = 0
+    filtered_out = 0
     for i, path in enumerate(files, 1):
+        if dataset_domains is not None and path.stem not in dataset_domains:
+            filtered_out += 1
+            continue
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             enrichments.append(DomainEnrichment.model_validate(data))
@@ -68,6 +74,8 @@ def main() -> int:
             skipped += 1
         if i % 100 == 0:
             logger.info("[%d/%d] loaded", i, len(files))
+    if filtered_out:
+        logger.info("Filtered out %d enrichments not in dataset", filtered_out)
 
     logger.info("Loaded %d enrichments (%d skipped)", len(enrichments), skipped)
 

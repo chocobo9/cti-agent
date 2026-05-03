@@ -9,11 +9,11 @@ profiles:
         enabled: true
       registration_time:
         weight: 1.0
-        coverage_rate: 0.2239
+        coverage_rate: 0.5309
         enabled: true
       tls_certificate:
         weight: 1.0
-        coverage_rate: 0.3102
+        coverage_rate: 0.3838
         enabled: true
       jarm:
         weight: 1.0
