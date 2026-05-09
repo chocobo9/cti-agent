@@ -197,6 +197,8 @@ def compute_temporal_summary(graph_paths: list[dict]) -> dict[str, Any]:
             if ts and isinstance(ts, str):
                 dates.append(ts[:10])
 
+    logger.debug("temporal_summary: %d ages extracted from %d success paths, dates=%s", len(ages), sum(1 for p in graph_paths if p.get("status") == "success"), sorted(set(dates))[:5])
+
     if not ages:
         return {
             "median_age_days": None,
@@ -485,6 +487,8 @@ async def evidence_evaluation_node(state: dict) -> dict:
     try:
         llm = _get_llm()
         evaluation = _call_evidence_eval(llm, user_message)
+        if evaluation is None:
+            raise ValueError("LLM returned None from structured output")
     except Exception:
         logger.exception("Evidence evaluation LLM call failed, using fallback")
         evaluation = _fallback_evaluation(graph_paths, rag_chunks, maas_info)
@@ -533,9 +537,33 @@ async def evidence_evaluation_node(state: dict) -> dict:
         f"gp_count={len(graph_paths)}"
     )
 
-    # --- Iteration routing: compute Round 2 templates via pure functions ---
+    # --- Source attribution: tag each candidate actor with evidence source ---
     is_shared = evaluation.is_shared_infrastructure or maas_info["is_shared"]
+
+    graph_actor_names: set[str] = set()
+    for p in graph_paths:
+        if p.get("status") == "success" and p.get("template") in ("domain_to_actor", "actor_to_domains", "active_campaigns"):
+            for actor in p.get("data", {}).get("actors", []):
+                name = actor.get("name") if isinstance(actor, dict) else None
+                if name:
+                    graph_actor_names.add(name)
+
+    rag_mentioned_actors: set[str] = set()
+    for chunk in rag_chunks:
+        content_lower = (chunk.get("content") or "").lower()
+        for candidate in evaluation.candidate_actors:
+            if candidate.actor_name.lower() in content_lower:
+                rag_mentioned_actors.add(candidate.actor_name)
+
+    for candidate in evaluation.candidate_actors:
+        if candidate.actor_name in graph_actor_names:
+            candidate.source = "graph"
+        elif candidate.actor_name in rag_mentioned_actors:
+            candidate.source = "rag"
+
     actors_dicts = [a.model_dump() for a in evaluation.candidate_actors]
+
+    # --- Iteration routing: compute Round 2 templates via pure functions ---
 
     routing_raw = state.get("_routing_decision") or {}
     intent = routing_raw.get("analysis", {}).get("intent") or routing_raw.get("intent", "general_cti_query")

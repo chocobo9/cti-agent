@@ -120,6 +120,10 @@ class ActorCandidate(BaseModel):
     actor_name: str
     confidence: float = Field(ge=0.0, le=1.0)
     supporting_evidence: list[str] = Field(default_factory=list)
+    source: str = Field(
+        default="llm_inference",
+        description="Evidence source: 'graph', 'rag', or 'llm_inference'",
+    )
 
 
 class EvidenceEvaluation(BaseModel):

@@ -15,6 +15,7 @@ import json
 import logging
 import math
 import time
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -96,12 +97,41 @@ def load_enrichments(
     return enrichments, filtered
 
 
+def _compute_rows(
+    enrichments: list[DomainEnrichment],
+    config: WeightConfig,
+    row_indices: list[int],
+    nan_fill: float,
+) -> tuple[list[tuple[int, int, float]], int]:
+    """Worker function for parallel distance computation.
+
+    Computes upper-triangle pairs for the given row indices.
+    Returns (triples, nan_count) where triples are (i, j, distance).
+    """
+    n = len(enrichments)
+    triples: list[tuple[int, int, float]] = []
+    nan_count = 0
+    for i in row_indices:
+        for j in range(i + 1, n):
+            d = composite_distance(enrichments[i], enrichments[j], config=config)
+            if math.isnan(d):
+                nan_count += 1
+                d = nan_fill
+            triples.append((i, j, d))
+    return triples, nan_count
+
+
 def build_distance_matrix(
     enrichments: list[DomainEnrichment],
     config: WeightConfig,
     nan_fill: float = 1.0,
+    workers: int = 1,
 ) -> DistanceMatrixResult:
-    """Compute the full NxN pairwise distance matrix."""
+    """Compute the full NxN pairwise distance matrix.
+
+    Args:
+        workers: Number of parallel processes. 1 = single-threaded (default).
+    """
     n = len(enrichments)
     total_pairs = n * (n - 1) // 2
     matrix = np.zeros((n, n), dtype=np.float64)
@@ -109,18 +139,42 @@ def build_distance_matrix(
 
     start = time.perf_counter()
 
-    for i in range(n):
-        for j in range(i + 1, n):
-            d = composite_distance(enrichments[i], enrichments[j], config=config)
-            if math.isnan(d):
-                nan_count += 1
-                d = nan_fill
-            matrix[i, j] = d
-            matrix[j, i] = d
+    if workers <= 1:
+        for i in range(n):
+            for j in range(i + 1, n):
+                d = composite_distance(enrichments[i], enrichments[j], config=config)
+                if math.isnan(d):
+                    nan_count += 1
+                    d = nan_fill
+                matrix[i, j] = d
+                matrix[j, i] = d
 
-        if (i + 1) % 100 == 0 or i + 1 == n:
-            elapsed = time.perf_counter() - start
-            logger.info("[%d/%d] rows computed (%.1fs)", i + 1, n, elapsed)
+            if (i + 1) % 100 == 0 or i + 1 == n:
+                elapsed = time.perf_counter() - start
+                logger.info("[%d/%d] rows computed (%.1fs)", i + 1, n, elapsed)
+    else:
+        chunks: list[list[int]] = [[] for _ in range(workers)]
+        for i in range(n):
+            chunks[i % workers].append(i)
+
+        logger.info("Parallel mode: %d workers, %d rows each (interleaved)", workers, n // workers)
+
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            futures = {
+                executor.submit(_compute_rows, enrichments, config, chunk, nan_fill): idx
+                for idx, chunk in enumerate(chunks)
+            }
+            completed = 0
+            for future in futures:
+                triples, chunk_nan = future.result()
+                nan_count += chunk_nan
+                for i, j, d in triples:
+                    matrix[i, j] = d
+                    matrix[j, i] = d
+                completed += 1
+                elapsed = time.perf_counter() - start
+                logger.info("Worker %d/%d finished (%d pairs, %.1fs elapsed)",
+                            completed, workers, len(triples), elapsed)
 
     elapsed = time.perf_counter() - start
 

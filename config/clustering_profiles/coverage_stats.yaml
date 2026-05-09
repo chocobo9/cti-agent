@@ -1,5 +1,5 @@
 coverage_stats:
-  generated_at: '2026-05-01T20:33:11.913972+00:00'
+  generated_at: '2026-05-04T22:30:49.263664+00:00'
   source_dir: data/enrichment
   total_domains: 938
   skipped_files: 0
@@ -8,11 +8,11 @@ coverage_stats:
       count: 938
       rate: 1.0
     registration_time:
-      count: 498
-      rate: 0.5309
+      count: 497
+      rate: 0.5299
     tls_certificate:
-      count: 360
-      rate: 0.3838
+      count: 537
+      rate: 0.5725
     jarm:
       count: 0
       rate: 0.0

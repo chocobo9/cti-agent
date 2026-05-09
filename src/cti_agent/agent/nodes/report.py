@@ -45,6 +45,7 @@ class AttributionReport(BaseModel):
     enrichment_suggested: bool = False
     timestamp: str = ""
 
+    sources_table: list[dict] = Field(default_factory=list)
     narrative_summary: str | None = None
 
 
@@ -121,6 +122,51 @@ def build_shared_infra_note(
 
 
 # ---------------------------------------------------------------------------
+# Sources table generation
+# ---------------------------------------------------------------------------
+
+
+def build_sources_table(
+    candidate_actors: list[dict],
+    infrastructure_evidence: list[str],
+    intelligence_evidence: list[str],
+    graph_paths: list[dict],
+) -> list[dict]:
+    """Auto-generate a sources reference table from evidence chain and actor sources."""
+    rows: list[dict] = []
+
+    for actor in candidate_actors:
+        name = actor.get("actor_name", "?")
+        source = actor.get("source", "llm_inference")
+        if source == "graph":
+            detail = "Graph (domain_to_actor / actor_to_domains)"
+        elif source == "rag":
+            detail = "RAG (CTI report mention)"
+        else:
+            detail = "LLM inference"
+        verifiable = source != "llm_inference"
+        rows.append({"claim": f"{name} attribution", "source": detail, "verifiable": verifiable})
+
+    for ev in infrastructure_evidence:
+        if ev.startswith("T"):
+            template_tag = ev.split(":")[0]
+            claim = ev[:80] + ("..." if len(ev) > 80 else "")
+            rows.append({"claim": claim, "source": f"Graph ({template_tag})", "verifiable": True})
+
+    for ev in intelligence_evidence:
+        if ev.startswith("RAG:"):
+            source_match = ""
+            if "sources=" in ev or "from [" in ev:
+                start = ev.find("[")
+                end = ev.find("]", start)
+                if start != -1 and end != -1:
+                    source_match = ev[start:end + 1]
+            rows.append({"claim": "CTI report corroboration", "source": f"RAG {source_match}", "verifiable": True})
+
+    return rows
+
+
+# ---------------------------------------------------------------------------
 # Report assembly (pure function)
 # ---------------------------------------------------------------------------
 
@@ -154,6 +200,7 @@ def assemble_report(state: dict) -> AttributionReport:
         iterations_performed=max(iterations, 1),
         enrichment_suggested=state.get("enrichment_suggested", False),
         timestamp=datetime.now(timezone.utc).isoformat(),
+        sources_table=build_sources_table(candidates, infra_ev, intel_ev, graph_paths),
     )
 
 
@@ -226,6 +273,15 @@ def render_report_markdown(report: AttributionReport) -> str:
     lines.append(f"- Temporal confidence: {report.temporal_confidence:.3f}")
     lines.append(f"- Enrichment suggested: {'Yes' if report.enrichment_suggested else 'No'}")
     lines.append(f"- Timestamp: {report.timestamp}")
+
+    if report.sources_table:
+        lines.append("")
+        lines.append("## Sources")
+        lines.append("| Claim | Source | Verifiable |")
+        lines.append("|-------|--------|------------|")
+        for row in report.sources_table:
+            mark = "yes" if row.get("verifiable") else "no (LLM)"
+            lines.append(f"| {row.get('claim', '?')} | {row.get('source', '?')} | {mark} |")
 
     if report.narrative_summary:
         lines.append("")

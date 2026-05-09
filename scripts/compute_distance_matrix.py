@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import statistics
 import sys
 from pathlib import Path
@@ -45,6 +46,8 @@ def main() -> int:
     parser.add_argument("--min-features", type=int, default=2)
     parser.add_argument("--dataset", type=Path, default=None,
                         help="JSONL dataset file — only include domains listed here")
+    parser.add_argument("--workers", type=int, default=os.cpu_count() or 4,
+                        help="Parallel workers for distance computation (default: cpu_count)")
     args = parser.parse_args()
 
     config = WeightConfig.from_yaml(args.profile_path, args.profile_name)
@@ -63,7 +66,7 @@ def main() -> int:
         logger.error("No enrichments loaded")
         return 1
 
-    result = build_distance_matrix(enrichments, config, nan_fill=args.nan_fill)
+    result = build_distance_matrix(enrichments, config, nan_fill=args.nan_fill, workers=args.workers)
     result = DistanceMatrixResult(
         matrix=result.matrix,
         domain_labels=result.domain_labels,

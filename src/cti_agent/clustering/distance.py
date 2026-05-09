@@ -120,11 +120,16 @@ def tls_certificate_distance(
     best = 1.0
     for ca in certs_a:
         for cb in certs_b:
+            if ca.fingerprint is not None and cb.fingerprint is not None and ca.fingerprint == cb.fingerprint:
+                best = 0.0
+                break
             issuer_dist = 0.0 if ca.issuer == cb.issuer else 1.0
             san_dist = _jaccard_distance(set(ca.san_list), set(cb.san_list))
             pair_dist = issuer_weight * issuer_dist + san_weight * san_dist
             if pair_dist < best:
                 best = pair_dist
+        if best == 0.0:
+            break
     return best
 
 
@@ -186,11 +191,11 @@ def passive_dns_distance(
     types_a: Sequence[str],
     pdns_b: Sequence[PassiveDNSRecord],
     types_b: Sequence[str],
-    ip_weight: float = 0.7,
-    type_weight: float = 0.3,
+    ip_weight: float = 1.0,
+    type_weight: float = 0.0,
     missing_default: float = 1.0,
 ) -> float:
-    """Composite: IP-set Jaccard (0.7) + DNS-record-type Jaccard (0.3).
+    """IP-set Jaccard distance with optional DNS-record-type component.
 
     Filters passive DNS records to valid IPs before comparison.
     Uses adaptive weighting when one component has no data.

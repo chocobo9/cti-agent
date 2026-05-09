@@ -25,3 +25,6 @@ mds/
 achieved/
 tasks_achieved/
 temp_*.py
+
+help/*
+helper/*

@@ -26,6 +26,8 @@ dependencies = [
     "langchain-core>=0.3",
     "langchain-deepseek>=0.1",
     "tenacity>=8.0",
+    "streamlit>=1.30",
+    "python-dotenv>=1.0",
 ]
 
 [tool.setuptools]
