@@ -14,12 +14,17 @@ from cti_agent.ingestion.mapper import (
 from cti_agent.ingestion.models import DomainEnrichment
 from cti_agent.ingestion.report import IngestReport
 from cti_agent.ingestion.utils import chunked
+from cti_agent.models import DomainInput
 
 DEFAULT_BATCH_SIZE = 100
 
 
-def ingest_domain(enrichment: DomainEnrichment, repo: GraphRepository) -> None:
-    props = map_domain_props(enrichment)
+def ingest_domain(
+    enrichment: DomainEnrichment,
+    repo: GraphRepository,
+    metadata: DomainInput | None = None,
+) -> None:
+    props = map_domain_props(enrichment, metadata=metadata)
     repo.merge_domain(
         name=props.name,
         tld=props.tld,
@@ -34,6 +39,10 @@ def ingest_domain(enrichment: DomainEnrichment, repo: GraphRepository) -> None:
         first_seen=props.first_seen,
         last_seen=props.last_seen,
         decay_score=props.decay_score,
+        source=props.source,
+        actor=props.actor,
+        family=props.family,
+        shared_infrastructure=props.shared_infrastructure,
     )
     cert_ops = map_certificate_ops(enrichment)
     for op in cert_ops:
@@ -70,14 +79,20 @@ def ingest_domain(enrichment: DomainEnrichment, repo: GraphRepository) -> None:
             repo.merge_belongs_to(ip=ip_addr, asn_number=op.number)
 
 
-def ingest_batch(enrichments: list[DomainEnrichment], repo: GraphRepository, batch_size: int = DEFAULT_BATCH_SIZE) -> IngestReport:
+def ingest_batch(
+    enrichments: list[DomainEnrichment],
+    repo: GraphRepository,
+    batch_size: int = DEFAULT_BATCH_SIZE,
+    metadata_map: dict[str, DomainInput] | None = None,
+) -> IngestReport:
     report = IngestReport()
     start = time.monotonic()
     for batch in chunked(enrichments, batch_size):
         with repo.transaction() as tx:
             for enrichment in batch:
                 try:
-                    ingest_domain(enrichment, tx)
+                    meta = (metadata_map or {}).get(enrichment.domain)
+                    ingest_domain(enrichment, tx, metadata=meta)
                     report.success += 1
                     if enrichment.errors:
                         report.partial_errors.append((enrichment.domain, dict(enrichment.errors)))
@@ -87,8 +102,12 @@ def ingest_batch(enrichments: list[DomainEnrichment], repo: GraphRepository, bat
     return report
 
 
-def ingest_domain_incremental(enrichment: DomainEnrichment, repo: GraphRepository) -> None:
+def ingest_domain_incremental(
+    enrichment: DomainEnrichment,
+    repo: GraphRepository,
+    metadata: DomainInput | None = None,
+) -> None:
     existing = repo.get_domain(enrichment.domain)
     if existing is not None:
         repo.update_domain_timestamps(name=enrichment.domain, last_seen=enrichment.enriched_at, decay_score=1.0)
-    ingest_domain(enrichment, repo)
+    ingest_domain(enrichment, repo, metadata=metadata)

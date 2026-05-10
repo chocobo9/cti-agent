@@ -26,14 +26,20 @@ ON CREATE SET
     d.creation_date = $creation_date, d.registration_length_days = $registration_length_days,
     d.age_days = $age_days, d.has_mx = $has_mx, d.has_spf = $has_spf, d.has_dmarc = $has_dmarc,
     d.dns_record_types = $dns_record_types, d.first_seen = $first_seen, d.last_seen = $last_seen,
-    d.decay_score = $decay_score
+    d.decay_score = $decay_score,
+    d.source = $source, d.actor = $actor, d.family = $family,
+    d.shared_infrastructure = $shared_infrastructure
 ON MATCH SET
     d.tld = $tld, d.length = $length, d.entropy = $entropy,
     d.creation_date = coalesce($creation_date, d.creation_date),
     d.registration_length_days = coalesce($registration_length_days, d.registration_length_days),
     d.age_days = coalesce($age_days, d.age_days), d.has_mx = $has_mx, d.has_spf = $has_spf,
     d.has_dmarc = $has_dmarc, d.dns_record_types = $dns_record_types, d.last_seen = $last_seen,
-    d.decay_score = $decay_score
+    d.decay_score = $decay_score,
+    d.source = coalesce($source, d.source),
+    d.actor = coalesce($actor, d.actor),
+    d.family = coalesce($family, d.family),
+    d.shared_infrastructure = $shared_infrastructure
 """
 
 _MERGE_IP = """
@@ -125,6 +131,10 @@ class GraphRepository:
         first_seen: datetime | None = None,
         last_seen: datetime | None = None,
         decay_score: float = 1.0,
+        source: str | None = None,
+        actor: str | None = None,
+        family: str | None = None,
+        shared_infrastructure: bool = False,
     ) -> None:
         node = DomainNode(
             name=name,
@@ -141,6 +151,10 @@ class GraphRepository:
             first_seen=first_seen,
             last_seen=last_seen,
             decay_score=decay_score,
+            source=source,
+            actor=actor,
+            family=family,
+            shared_infrastructure=shared_infrastructure,
         )
         self._client.execute_write(_MERGE_DOMAIN, node.to_dict())
 

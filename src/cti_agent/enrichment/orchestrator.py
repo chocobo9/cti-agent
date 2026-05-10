@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import UTC, datetime
 
-from cti_agent.enrichment.config import get_settings
+from cti_agent.enrichment.config import ALL_SOURCES, get_settings
 from cti_agent.enrichment.ct_logs import query_crt_sh
 from cti_agent.enrichment.domain_features import compute_domain_string_features
 from cti_agent.enrichment.favicon import get_favicon_hash
@@ -18,18 +19,103 @@ from cti_agent.enrichment.models import (
     RdapResult,
 )
 from cti_agent.enrichment.passive_dns import query_dns_records, query_passive_dns
+from cti_agent.enrichment.rate_limit import RateLimitedSession
 from cti_agent.enrichment.rdap import query_rdap
 
+logger = logging.getLogger(__name__)
 
-async def enrich_domain(domain: str) -> DomainEnrichment:
+
+def _is_valid_ip(value: str) -> bool:
+    """Return True if *value* is a routable IP address (not a hostname or sentinel)."""
+    import ipaddress
+
+    try:
+        addr = ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    return not addr.is_unspecified
+
+
+def _source_status(enrichment: DomainEnrichment) -> str:
+    """Build a human-readable status string for one enrichment result."""
+    parts: list[str] = []
+    checks = [
+        ("crt.sh", "ct_logs", bool(enrichment.certificates)),
+        ("RDAP", "rdap", enrichment.creation_date is not None or enrichment.registrar is not None),
+        ("JARM", "jarm", enrichment.jarm_hash is not None),
+        ("pDNS", "passive_dns", bool(enrichment.passive_dns)),
+        ("favicon", "favicon", enrichment.favicon_hash is not None),
+        ("GeoIP", "geoip", bool(enrichment.geoip)),
+    ]
+    for label, error_key, has_data in checks:
+        if error_key in enrichment.errors:
+            parts.append(f"{label} ✗")
+        elif has_data:
+            parts.append(f"{label} ✓")
+        else:
+            parts.append(f"{label} —")
+    return ", ".join(parts)
+
+
+async def enrich_domain(
+    domain: str,
+    rate_limiter: RateLimitedSession | None = None,
+    sources: frozenset[str] | None = None,
+) -> DomainEnrichment:
+    enabled = sources if sources is not None else ALL_SOURCES
     errors: dict[str, str] = {}
+
+    async def _crtsh() -> list[CertificateInfo]:
+        if rate_limiter:
+            async with rate_limiter.crtsh:
+                return await query_crt_sh(domain)
+        return await query_crt_sh(domain)
+
+    async def _jarm() -> str | None:
+        if rate_limiter:
+            async with rate_limiter.jarm:
+                return await scan_jarm(domain)
+        return await scan_jarm(domain)
+
+    async def _favicon() -> int | None:
+        if rate_limiter:
+            async with rate_limiter.favicon:
+                return await get_favicon_hash(domain)
+        return await get_favicon_hash(domain)
+
+    async def _pdns() -> list[PassiveDNSRecord]:
+        if rate_limiter:
+            async with rate_limiter.otx:
+                return await query_passive_dns(domain)
+        return await query_passive_dns(domain)
+
+    async def _rdap() -> RdapResult:
+        if rate_limiter:
+            async with rate_limiter.rdap:
+                return await query_rdap(domain)
+        return await query_rdap(domain)
+
+    async def _noop_list() -> list:
+        return []
+
+    async def _noop_none() -> None:
+        return None
+
+    async def _noop_rdap() -> RdapResult:
+        return RdapResult()
+
+    async def _noop_dns() -> DnsQueryResult:
+        return DnsQueryResult()
+
+    run_dns = "pdns" in enabled or "geoip" in enabled
+
     results = await asyncio.gather(
-        query_crt_sh(domain),
-        scan_jarm(domain),
-        get_favicon_hash(domain),
-        query_passive_dns(domain),
-        query_rdap(domain),
-        query_dns_records(domain),
+        _crtsh() if "crtsh" in enabled else _noop_list(),
+        _jarm() if "jarm" in enabled else _noop_none(),
+        _favicon() if "favicon" in enabled else _noop_none(),
+        _pdns() if "pdns" in enabled else _noop_list(),
+        _rdap() if "rdap" in enabled else _noop_rdap(),
+        query_dns_records(domain) if run_dns else _noop_dns(),
         return_exceptions=True,
     )
 
@@ -49,14 +135,14 @@ async def enrich_domain(domain: str) -> DomainEnrichment:
 
     all_ips: list[str] = []
     for record in passive_dns:
-        if record.ip not in all_ips:
+        if record.ip not in all_ips and _is_valid_ip(record.ip):
             all_ips.append(record.ip)
     for ip in dns_result.current_ips:
-        if ip not in all_ips:
+        if ip not in all_ips and _is_valid_ip(ip):
             all_ips.append(ip)
 
     geoip: list[GeoIPInfo] = []
-    if all_ips:
+    if all_ips and "geoip" in enabled:
         try:
             geoip = lookup_geoip_batch(all_ips)
         except Exception as exc:
@@ -86,12 +172,37 @@ async def enrich_domain(domain: str) -> DomainEnrichment:
     )
 
 
-async def enrich_batch(domains: list[str], concurrency: int | None = None) -> list[DomainEnrichment]:
+async def enrich_batch(
+    domains: list[str],
+    concurrency: int | None = None,
+    sources: frozenset[str] | None = None,
+) -> list[DomainEnrichment]:
     settings = get_settings()
     sem = asyncio.Semaphore(concurrency or settings.batch_concurrency)
+    rate_limiter = RateLimitedSession(
+        crtsh_rate=settings.crtsh_rate_limit,
+        otx_rate=settings.otx_rate_limit,
+        rdap_rate=settings.rdap_rate_limit,
+        jarm_concurrency=settings.jarm_concurrency_limit,
+        favicon_concurrency=settings.favicon_concurrency_limit,
+    )
+    total = len(domains)
+    completed = 0
 
     async def _limited(domain: str) -> DomainEnrichment:
+        nonlocal completed
         async with sem:
-            return await enrich_domain(domain)
+            result = await enrich_domain(domain, rate_limiter=rate_limiter, sources=sources)
+        completed += 1
+        logger.info(
+            "[%d/%d] %s — %s",
+            completed,
+            total,
+            domain,
+            _source_status(result),
+        )
+        return result
 
-    return list(await asyncio.gather(*[_limited(d) for d in domains]))
+    return list(
+        await asyncio.gather(*[_limited(d) for d in domains])
+    )

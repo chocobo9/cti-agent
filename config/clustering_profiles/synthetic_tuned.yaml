@@ -1,0 +1,33 @@
+profiles:
+  synthetic_tuned:
+    alpha: 0.5
+    min_shared_features: 2
+    features:
+      domain_string:
+        weight: 1.0
+        coverage_rate: 1.0
+        enabled: true
+      registration_time:
+        weight: 1.0
+        coverage_rate: 0.6009
+        enabled: true
+      tls_certificate:
+        weight: 1.0
+        coverage_rate: 0.4489
+        enabled: true
+      jarm:
+        weight: 1.0
+        coverage_rate: 0.0
+        enabled: false
+      favicon:
+        weight: 1.0
+        coverage_rate: 0.0
+        enabled: false
+      passive_dns:
+        weight: 2.0
+        coverage_rate: 0.948
+        enabled: true
+      asn_geo:
+        weight: 1.5
+        coverage_rate: 0.7283
+        enabled: true

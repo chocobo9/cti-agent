@@ -1,0 +1,33 @@
+profiles:
+  coverage_weighted:
+    alpha: 0.5
+    min_shared_features: 2
+    features:
+      domain_string:
+        weight: 1.0
+        coverage_rate: 1.0
+        enabled: true
+      registration_time:
+        weight: 1.0
+        coverage_rate: 0.5299
+        enabled: true
+      tls_certificate:
+        weight: 1.3
+        coverage_rate: 0.5725
+        enabled: true
+      jarm:
+        weight: 1.0
+        coverage_rate: 0.0
+        enabled: false
+      favicon:
+        weight: 1.0
+        coverage_rate: 0.0522
+        enabled: true
+      passive_dns:
+        weight: 1.75
+        coverage_rate: 0.9563
+        enabled: true
+      asn_geo:
+        weight: 1.7
+        coverage_rate: 0.7783
+        enabled: true

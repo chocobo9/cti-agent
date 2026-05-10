@@ -11,7 +11,7 @@ class Neo4jSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    neo4j_uri: str = "bolt://localhost:7687"
+    neo4j_uri: str = "bolt://localhost:7688"
     neo4j_user: str = "neo4j"
     neo4j_password: SecretStr = SecretStr("changeme")
     neo4j_database: str = "neo4j"

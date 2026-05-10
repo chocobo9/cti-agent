@@ -3,6 +3,8 @@ venv/
 env/
 agent-venv/
 
+.claude/
+
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -13,8 +15,16 @@ __pycache__/
 Thumbs.db
 
 .env
-.env.example
+
 tests/
 
 *.egg-info/
-mds/*
+
+data/
+mds/
+achieved/
+tasks_achieved/
+temp_*.py
+
+help/*
+helper/*

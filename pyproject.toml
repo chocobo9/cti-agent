@@ -5,8 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cti-agent"
 version = "0.1.0"
-description = "Interface unification layer for CTI agent sessions"
+description = "Agentic CTI Attribution System — domain clustering, campaign discovery, and threat actor attribution"
 requires-python = ">=3.11"
+
+# Core: enrichment + ingestion + graph — minimal install (~200MB)
 dependencies = [
     "neo4j>=5.0,<6.0",
     "pydantic>=2.7",
@@ -15,6 +17,48 @@ dependencies = [
     "dnspython>=2.6",
     "mmh3>=4.0",
     "geoip2>=4.8",
+    "aiolimiter>=1.1",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+# M3: clustering + campaign discovery (~500MB additional)
+clustering = [
+    "numpy>=1.26",
+    "scikit-learn>=1.4",
+    "rapidfuzz>=3.0",
+    "leidenalg>=0.10",
+    "igraph>=0.11",
+]
+
+# M4: agent orchestration (~400MB additional; rapidfuzz shared with clustering string matching)
+agent = [
+    "rapidfuzz>=3.0",
+    "langgraph>=0.4",
+    "langchain-core>=0.3",
+    "langchain-deepseek>=0.1",
+    "tenacity>=8.0",
+]
+
+# UI: Streamlit frontend (~800MB additional — heaviest group)
+ui = [
+    "streamlit>=1.30",
+]
+
+# Full install: everything
+all = [
+    "cti-agent[clustering]",
+    "cti-agent[agent]",
+    "cti-agent[ui]",
+]
+
+# Development
+dev = [
+    "cti-agent[all]",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
 ]
 
 [tool.setuptools]
@@ -22,3 +66,9 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-m 'not integration'"
+markers = [
+    "integration: tests that require external services such as Neo4j (WIPES DATABASE — run only with: pytest -m integration)",
+]
