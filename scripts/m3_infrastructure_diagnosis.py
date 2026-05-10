@@ -303,7 +303,8 @@ def main() -> int:
         logger.info("  %s: verdict=%s, IP overlap=%d/%d", family, r["verdict"],
                      r["ip_overlap"]["sharing_pairs"], r["ip_overlap"]["total_pairs"])
 
-    shared_entries = by_group.get("shared_infrastructure", [])
+    # Dataset JSONL uses group key "shared_infra" (see m2_dataset_builder.py); not the boolean field name.
+    shared_entries = by_group.get("shared_infra", [])
     by_shared: dict[str, list[dict]] = defaultdict(list)
     for e in shared_entries:
         by_shared[e.get("family", "shared")].append(e)
