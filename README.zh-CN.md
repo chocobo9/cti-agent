@@ -12,7 +12,7 @@
 
 ```mermaid
 flowchart TD
-    subgraph M1["M1 — 富集"]
+    subgraph m1["M1 - 富集"]
         D[域名列表<br>JSONL] --> E[异步富集<br>6 路 OSINT]
         E --> J1[crt.sh<br>TLS 证书]
         E --> J2[RDAP<br>注册信息]
@@ -23,12 +23,12 @@ flowchart TD
         J1 & J2 & J3 & J4 & J5 & J6 --> F[DomainEnrichment<br>每域名 JSON]
     end
 
-    subgraph M2["M2 — 图谱入库"]
+    subgraph m2["M2 - 图谱入库"]
         F --> G[Mapper<br>富集 → 节点]
         G --> H[(Neo4j<br>Domain · IP · ASN<br>Cert · JARM · Favicon)]
     end
 
-    subgraph M3["M3 — 聚类与战役"]
+    subgraph m3["M3 - 聚类与战役"]
         F --> I[距离矩阵<br>PDS + FWPD]
         I --> K[DBSCAN + HDBSCAN<br>组合集成]
         K --> L[结构质量<br>过滤]
@@ -38,7 +38,7 @@ flowchart TD
         O --> H
     end
 
-    subgraph M4["M4 — 智能体"]
+    subgraph m4["M4 - 智能体"]
         Q[用户查询] --> R[Supervisor<br>DeepSeek LLM]
         R --> S{路由}
         S -->|结构性| T[基础设施智能体<br>8 条 Cypher 模板]

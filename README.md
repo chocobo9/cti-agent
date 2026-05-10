@@ -12,7 +12,7 @@ Given a suspicious domain, the system enriches it from 6 OSINT sources, computes
 
 ```mermaid
 flowchart TD
-    subgraph M1 — Enrichment
+    subgraph m1["M1 - Enrichment"]
         D[Domain list<br>JSONL] --> E[Async enrichment<br>6 OSINT sources]
         E --> J1[crt.sh<br>TLS certs]
         E --> J2[RDAP<br>registration]
@@ -23,12 +23,12 @@ flowchart TD
         J1 & J2 & J3 & J4 & J5 & J6 --> F[DomainEnrichment<br>JSON per domain]
     end
 
-    subgraph M2 — Graph Ingestion
+    subgraph m2["M2 - Graph Ingestion"]
         F --> G[Mapper<br>enrichment → nodes]
         G --> H[(Neo4j<br>Domain · IP · ASN<br>Cert · JARM · Favicon)]
     end
 
-    subgraph M3 — Clustering + Campaign
+    subgraph m3["M3 - Clustering + Campaign"]
         F --> I[Distance matrix<br>PDS + FWPD]
         I --> K[DBSCAN + HDBSCAN<br>combined ensemble]
         K --> L[Structural quality<br>filter]
@@ -38,7 +38,7 @@ flowchart TD
         O --> H
     end
 
-    subgraph M4 — Agent
+    subgraph m4["M4 - Agent"]
         Q[User query] --> R[Supervisor<br>DeepSeek LLM]
         R --> S{Route}
         S -->|structural| T[Infrastructure agent<br>8 Cypher templates]
