@@ -41,9 +41,9 @@ agent = [
     "tenacity>=8.0",
 ]
 
-# UI: Streamlit frontend (~800MB additional — heaviest group)
+# UI: Chainlit frontend
 ui = [
-    "streamlit>=1.30",
+    "chainlit>=1.0",
 ]
 
 # Full install: everything
