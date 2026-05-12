@@ -10,7 +10,6 @@ Design reference: Discussion Summary v4 §3.5 step 6
 from __future__ import annotations
 
 import logging
-import os
 from datetime import datetime, timezone
 from typing import Any
 
@@ -300,28 +299,45 @@ def _generate_narrative(state: dict, report: AttributionReport) -> str:
     from langchain_core.messages import HumanMessage, SystemMessage
 
     from cti_agent.agent.nodes.evidence_eval import _get_llm
+    from cti_agent.agent.prompts import REPORT_NARRATIVE_USER_TEMPLATE
+    from cti_agent.agent.skills.loader import load_skill
 
-    evidence_text = "\n".join(report.infrastructure_evidence[:10])
-    intel_text = "\n".join(report.intelligence_evidence[:5])
-    actors_text = ", ".join(
-        f"{a.get('actor_name', '?')} ({a.get('confidence', 0):.2f})"
-        for a in report.candidate_actors
-    )
+    candidates_lines: list[str] = []
+    for a in report.candidate_actors:
+        name = a.get("actor_name", "?")
+        conf = a.get("confidence", 0)
+        evidence = a.get("supporting_evidence", [])
+        candidates_lines.append(f"- {name} (confidence: {conf}): {'; '.join(str(e) for e in evidence)}")
+    candidates_text = "\n".join(candidates_lines) if candidates_lines else "None identified"
 
-    prompt = (
-        f"Domain: {report.domain or 'N/A'}\n"
-        f"Confidence: {report.confidence:.2f}\n"
-        f"Candidates: {actors_text or 'none'}\n"
-        f"Shared infra: {report.is_shared_infrastructure}\n"
-        f"Infrastructure:\n{evidence_text}\n"
-        f"Intelligence:\n{intel_text}\n\n"
-        "Write a 2-3 sentence analyst summary of the attribution findings."
+    campaigns_lines: list[str] = []
+    for c in report.campaign_associations:
+        cname = c.get("name") or c.get("campaign_id", "?")
+        campaigns_lines.append(f"- {cname}")
+    campaigns_text = "\n".join(campaigns_lines) if campaigns_lines else "None"
+
+    infra_text = "\n".join(report.infrastructure_evidence[:10]) or "None"
+    intel_text = "\n".join(report.intelligence_evidence[:5]) or "None"
+
+    user_message = REPORT_NARRATIVE_USER_TEMPLATE.format(
+        query=state.get("query", ""),
+        domain=report.domain or "N/A",
+        query_type=report.query_type,
+        confidence=report.confidence,
+        attribution_result=report.attribution_result,
+        candidates=candidates_text,
+        is_shared_infrastructure=report.is_shared_infrastructure,
+        shared_infra_note=report.shared_infra_note or "N/A",
+        campaigns=campaigns_text,
+        enrichment_suggested=report.enrichment_suggested,
+        infrastructure_evidence=infra_text,
+        intelligence_evidence=intel_text,
     )
 
     llm = _get_llm()
     response = llm.invoke([
-        SystemMessage(content="You are a CTI analyst writing a brief attribution summary."),
-        HumanMessage(content=prompt),
+        SystemMessage(content=load_skill("report-generation")),
+        HumanMessage(content=user_message),
     ])
     return response.content.strip()
 
@@ -336,15 +352,12 @@ async def report_generation_node(state: dict) -> dict:
 
     Reads: all accumulated state fields after evidence evaluation.
     Writes: attribution_report (dict)
-
-    Set REPORT_NARRATIVE=1 to enable optional LLM narrative (1 DeepSeek call).
     """
     report = assemble_report(state)
 
-    if os.environ.get("REPORT_NARRATIVE") == "1":
-        try:
-            report.narrative_summary = _generate_narrative(state, report)
-        except Exception:
-            logger.exception("Narrative generation failed, skipping")
+    try:
+        report.narrative_summary = _generate_narrative(state, report)
+    except Exception:
+        logger.exception("Narrative generation failed, skipping")
 
     return {"attribution_report": report.model_dump()}

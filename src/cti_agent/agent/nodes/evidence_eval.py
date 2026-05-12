@@ -20,8 +20,10 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import ValidationError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
+from cti_agent.agent.prompts import EVIDENCE_EVALUATION_USER_TEMPLATE
 from cti_agent.agent.routing import build_evidence_checklist, select_iteration_templates
 from cti_agent.agent.schemas import EvidenceEvaluation
+from cti_agent.agent.skills.loader import load_skill
 
 logger = logging.getLogger(__name__)
 
@@ -45,76 +47,6 @@ _MAAS_ASNS = frozenset({
 _MAX_ITERATIONS = 2
 
 # ---------------------------------------------------------------------------
-# LLM prompts
-# ---------------------------------------------------------------------------
-
-EVIDENCE_EVALUATION_SYSTEM_PROMPT = """\
-You are a CTI attribution analyst evaluating collected evidence.
-
-Your task: assess whether the infrastructure graph evidence and threat intelligence report evidence are sufficient to attribute a domain/query to a specific threat actor.
-
-## Output requirements:
-
-### confidence (0.0-1.0):
-- 0.9-1.0: Direct graph path (domain → campaign → actor) with corroborating RAG evidence
-- 0.7-0.9: Strong infrastructure overlap (shared IPs/certs/clusters) pointing to single actor
-- 0.5-0.7: Circumstantial evidence (ASN/registrar patterns, behavioral TTPs from reports)
-- 0.3-0.5: Weak signals (common hosting, generic patterns)
-- 0.0-0.3: Insufficient evidence or contradictory signals
-
-### evidence_sufficiency (choose exactly one):
-- "high": Direct graph path exists (domain → campaign → actor) AND corroborating RAG report evidence
-- "medium": Strong infrastructure overlap pointing to single actor, OR RAG reports explicitly link the infrastructure to an actor
-- "low": Only indirect signals (ASN/registrar patterns, generic TTP matches)
-- "insufficient": No meaningful evidence, or evidence is contradictory
-
-### candidate_actors:
-- List ALL plausible actors with individual confidence (0.0-1.0) and supporting evidence strings
-- If shared infrastructure detected: include multiple actors with lower individual confidence
-
-### missing_evidence_types (use ONLY these exact values):
-- "infrastructure_pivot": Need more infrastructure correlation (IP/cert/domain pivots)
-- "ttp_corroboration": Need TTP/behavioral pattern corroboration from CTI reports
-- "campaign_match": Need campaign matching verification
-- "certificate_pivot": Need certificate data to support attribution
-- "enrichment_needed": Domain not in graph, needs enrichment first
-
-### evidence_gaps:
-- Free-text descriptions of what specific evidence would strengthen the attribution
-
-### is_shared_infrastructure:
-- True if domain uses known CDN/cloud ASNs, shares IPs with many unrelated domains, or is flagged as shared hosting
-
-### needs_more_evidence:
-- True if evidence_sufficiency is "low" or "insufficient" AND actionable gaps exist
-- False if evidence_sufficiency is "high" OR no actionable improvements possible
-
-### reasoning:
-- Step-by-step explanation of your assessment logic"""
-
-EVIDENCE_EVALUATION_USER_TEMPLATE = """\
-## Query
-{query}
-
-## Target domain
-{domain}
-
-## Graph evidence (infrastructure analysis summaries)
-{graph_evidence}
-
-## RAG evidence (CTI report chunks)
-{rag_evidence}
-
-## Temporal context
-{temporal_description}
-
-## MaaS indicators
-{maas_indicators}
-
-Evaluate the evidence and provide your attribution assessment:"""
-
-
-# ---------------------------------------------------------------------------
 # LLM interface
 # ---------------------------------------------------------------------------
 
@@ -136,7 +68,7 @@ def _get_llm():
 def _call_evidence_eval(llm: Any, user_message: str) -> EvidenceEvaluation:
     structured_llm = llm.with_structured_output(EvidenceEvaluation)
     return structured_llm.invoke([
-        SystemMessage(content=EVIDENCE_EVALUATION_SYSTEM_PROMPT),
+        SystemMessage(content=load_skill("evidence-evaluation")),
         HumanMessage(content=user_message),
     ])
 

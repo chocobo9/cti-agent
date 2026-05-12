@@ -18,7 +18,8 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
-from cti_agent.agent.prompts import QUERY_REWRITING_SYSTEM_PROMPT, QUERY_REWRITING_USER_TEMPLATE
+from cti_agent.agent.prompts import QUERY_REWRITING_USER_TEMPLATE
+from cti_agent.agent.skills.loader import load_skill
 from cti_agent.agent.supervisor import _get_llm
 from cti_agent.agent.tools.rag_retriever import retrieve_cti_chunks
 
@@ -67,7 +68,7 @@ def _build_user_message(state: dict) -> str:
 )
 def _call_rewrite_llm(llm: Any, user_message: str) -> str:
     response = llm.invoke([
-        SystemMessage(content=QUERY_REWRITING_SYSTEM_PROMPT),
+        SystemMessage(content=load_skill("query-rewriting")),
         HumanMessage(content=user_message),
     ])
     return response.content
