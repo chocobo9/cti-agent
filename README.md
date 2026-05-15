@@ -54,6 +54,7 @@ flowchart TD
     CTI-RAG -.-> U
 ```
 
+<img width="1400" height="1240" alt="CTI-Agent Architecture" src="https://github.com/user-attachments/assets/dd027984-709f-4dca-8740-b6e75c738d63" />
 
 
 ---
