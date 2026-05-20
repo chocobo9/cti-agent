@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 from datetime import datetime
 from typing import Any
 
@@ -41,6 +42,10 @@ async def query_passive_dns(domain: str) -> list[PassiveDNSRecord]:
     for entry in data.get("passive_dns", []):
         ip = entry.get("address", "").strip()
         if not ip or ip in seen_ips:
+            continue
+        try:
+            ipaddress.ip_address(ip)
+        except ValueError:
             continue
         seen_ips.add(ip)
         records.append(

@@ -156,7 +156,7 @@ async def enrich_domain(
         jarm_hash=jarm_hash,
         favicon_hash=favicon_hash_val,
         passive_dns=passive_dns,
-        current_ips=dns_result.current_ips,
+        current_ips=all_ips,
         dns_record_types=dns_result.dns_record_types,
         has_mx=dns_result.has_mx,
         has_spf=dns_result.has_spf,
