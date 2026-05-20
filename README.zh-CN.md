@@ -45,7 +45,8 @@ flowchart TD
         S -->|语义性| U[情报智能体<br>多查询 RAG]
         S -->|混合| T
         T --> U
-        U --> V[证据评估<br>置信度 + 检查清单]
+        U --> GP[Graph Probe<br>RAG → Neo4j 桥接]
+        GP --> V[证据评估<br>置信度 + 检查清单]
         V -->|继续迭代| T
         V -->|结束| W[归因报告]
     end
@@ -66,7 +67,7 @@ flowchart TD
 
 **战役发现** — 构建事件相似度图（基于簇标签集合 Jaccard + 时间窗过滤）→ Leiden 社区发现（含 10 次运行的稳定性协议）→ 战役属性计算 → 通过多数投票及共享基础设施检测完成威胁行为体归因。
 
-**多智能体归因** — LangGraph `StateGraph` 与条件迭代：Supervisor（结构化 LLM 输出进行查询分析）→ 确定性三路路由 → 基础设施智能体（8 条参数化 Cypher + 模糊行为体匹配）→ 情报智能体（DMQR-RAG 多查询改写 + 通过 [CTI-RAG](https://github.com/chocobo9/CTI-RAG) 做 RRF 融合）→ 证据评估（置信度与检查清单驱动迭代）→ 报告生成。
+**多智能体归因** — LangGraph `StateGraph` 与条件迭代：Supervisor（结构化 LLM 输出进行查询分析）→ 确定性三路路由 → 基础设施智能体（8 条参数化 Cypher + 模糊行为体匹配）→ 情报智能体（DMQR-RAG 多查询改写 + 通过 [CTI-RAG](https://github.com/chocobo9/CTI-RAG) 做 RRF 融合）→ Graph Probe（从 RAG chunks 提取 IOC 实体并在 Neo4j 中验证，将语义证据桥接回知识图谱）→ 证据评估（置信度与检查清单驱动迭代）→ 报告生成。
 
 **Chainlit 交互 UI** — Chainlit 对话界面将用户原始输入直接传入 `graph.ainvoke({"query": user_text})`，并展示归因结果与相关元数据。
 
@@ -129,6 +130,7 @@ cti-agent/
 │   │   ├── nodes/
 │   │   │   ├── infrastructure.py  # Cypher 模板执行
 │   │   │   ├── intelligence.py    # 多查询 RAG 检索
+│   │   │   ├── graph_probe.py     # RAG→Neo4j 实体桥接
 │   │   │   ├── evidence_eval.py   # 置信度与迭代逻辑
 │   │   │   └── report.py          # 归因报告组装
 │   │   └── tools/

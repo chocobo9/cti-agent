@@ -45,7 +45,8 @@ flowchart TD
         S -->|semantic| U[Intelligence agent<br>multi-query RAG]
         S -->|mixed| T
         T --> U
-        U --> V[Evidence evaluation<br>confidence + checklist]
+        U --> GP[Graph Probe<br>RAG → Neo4j bridge]
+        GP --> V[Evidence evaluation<br>confidence + checklist]
         V -->|iterate| T
         V -->|finish| W[Attribution report]
     end
@@ -55,7 +56,6 @@ flowchart TD
 ```
 
 <img width="1400" height="1240" alt="CTI-Agent Architecture" src="https://github.com/user-attachments/assets/dd027984-709f-4dca-8740-b6e75c738d63" />
-
 
 ---
 
@@ -69,7 +69,7 @@ flowchart TD
 
 **Campaign discovery** — Incident similarity graph (Jaccard on cluster tag sets + time window filtering) → Leiden community detection with 10-run stability protocol → campaign attribute computation → threat actor attribution via majority vote with shared infrastructure detection.
 
-**Multi-agent attribution** — LangGraph StateGraph with conditional iteration: Supervisor (query analysis via structured LLM output) → deterministic 3-way routing → Infrastructure Agent (8 parameterized Cypher templates with fuzzy actor matching) → Intelligence Agent (DMQR-RAG multi-query rewriting + RRF fusion via [CTI-RAG](https://github.com/chocobo9/CTI-RAG)) → Evidence Evaluation (confidence scoring + checklist-driven iteration) → Report generation.
+**Multi-agent attribution** — LangGraph StateGraph with conditional iteration: Supervisor (query analysis via structured LLM output) → deterministic 3-way routing → Infrastructure Agent (8 parameterized Cypher templates with fuzzy actor matching) → Intelligence Agent (DMQR-RAG multi-query rewriting + RRF fusion via [CTI-RAG](https://github.com/chocobo9/CTI-RAG)) → Graph Probe (extracts IOCs from RAG chunks and validates them against Neo4j, bridging semantic evidence back to the knowledge graph) → Evidence Evaluation (confidence scoring + checklist-driven iteration) → Report generation.
 
 **Chainlit UI** — Chat interface that forwards raw user input directly to `graph.ainvoke({"query": user_text})` and renders attribution results with metadata.
 
@@ -134,6 +134,7 @@ cti-agent/
 │   │   ├── nodes/
 │   │   │   ├── infrastructure.py  # Cypher template execution
 │   │   │   ├── intelligence.py    # multi-query RAG retrieval
+│   │   │   ├── graph_probe.py     # RAG→Neo4j entity bridge
 │   │   │   ├── evidence_eval.py   # confidence + iteration logic
 │   │   │   └── report.py          # attribution report assembly
 │   │   └── tools/

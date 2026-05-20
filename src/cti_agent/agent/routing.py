@@ -246,3 +246,41 @@ def select_iteration_templates(
         return [], []
 
     return templates, hints
+
+
+def build_templates_from_entities(
+    domains: list[str],
+    ips: list[str],
+    actors: list[str],
+) -> list[CypherInstruction]:
+    """Build Cypher templates from entities extracted by graph_probe.
+
+    Unlike select_templates() which uses QueryAnalysis (Supervisor output),
+    this function takes raw entity lists (from RAG chunk extraction) and
+    produces templates for graph validation.
+
+    Template selection rules:
+      - domain → T2 (domain_to_actor) — 最直接的归因路径
+      - IP → T6 (reverse_ip_lookup) — 从 IP 展开共站域名
+      - actor → T3 (actor_to_domains) + T8 (active_campaigns) — 从 actor 展开
+    """
+    templates: list[CypherInstruction] = []
+    seen: set[str] = set()
+
+    def _add(name: str, params: dict[str, Any]) -> None:
+        key = f"{name}|{sorted(params.items())}"
+        if key not in seen:
+            seen.add(key)
+            templates.append(CypherInstruction(name, params, priority=0))
+
+    for domain in domains:
+        _add("domain_to_actor", {"domain": domain})
+
+    for ip in ips:
+        _add("reverse_ip_lookup", {"ip": ip})
+
+    for actor in actors:
+        _add("actor_to_domains", {"actor": actor})
+        _add("active_campaigns", {"actor": actor})
+
+    return templates

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 from dataclasses import dataclass, field
 from datetime import date, datetime
 
@@ -133,6 +134,10 @@ def map_ip_ops(enrichment: DomainEnrichment) -> list[IpOp]:
             all_ips.append(p.ip)
     for ip_addr in all_ips:
         if ip_addr in seen:
+            continue
+        try:
+            ipaddress.ip_address(ip_addr)
+        except ValueError:
             continue
         seen.add(ip_addr)
         pdns = pdns_map.get(ip_addr)
