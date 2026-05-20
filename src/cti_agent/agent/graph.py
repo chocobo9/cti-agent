@@ -14,6 +14,7 @@ from typing import Any
 from langgraph.graph import END, StateGraph
 
 from cti_agent.agent.nodes.evidence_eval import evidence_evaluation_node
+from cti_agent.agent.nodes.graph_probe import graph_probe_node
 from cti_agent.agent.nodes.infrastructure import infrastructure_agent_node
 from cti_agent.agent.nodes.intelligence import intelligence_agent_node
 from cti_agent.agent.nodes.report import report_generation_node
@@ -70,9 +71,9 @@ def build_attribution_graph() -> StateGraph:
 
     Graph topology:
         supervisor → conditional routing:
-            structural  → infrastructure → intelligence → evidence_eval
-            semantic    → intelligence → infrastructure → evidence_eval
-            mixed       → infrastructure → intelligence → evidence_eval
+            structural  → infrastructure → intelligence → graph_probe → evidence_eval
+            semantic    → intelligence → graph_probe → evidence_eval
+            mixed       → infrastructure → intelligence → graph_probe → evidence_eval
 
         evidence_eval → conditional:
             iterate → infrastructure (loop back for more evidence)
@@ -84,6 +85,7 @@ def build_attribution_graph() -> StateGraph:
     graph.add_node("infrastructure", infrastructure_agent_node)
     graph.add_node("intelligence", intelligence_agent_node)
     graph.add_node("evidence_eval", evidence_evaluation_node)
+    graph.add_node("graph_probe", graph_probe_node)
     graph.add_node("report", report_generation_node)
 
     graph.set_entry_point("supervisor")
@@ -99,7 +101,8 @@ def build_attribution_graph() -> StateGraph:
     )
 
     graph.add_edge("infrastructure", "intelligence")
-    graph.add_edge("intelligence", "evidence_eval")
+    graph.add_edge("intelligence", "graph_probe")
+    graph.add_edge("graph_probe", "evidence_eval")
 
     graph.add_conditional_edges(
         "evidence_eval",
