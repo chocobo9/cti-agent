@@ -1,0 +1,127 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.heroBanner {
+  padding: 24px;
+  border-radius: 12px;
+}
+
+.heroLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.heroScore {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-top: 6px;
+}
+
+.heroNarrative {
+  font-size: 13.5px;
+  margin-top: 8px;
+  max-width: 720px;
+  line-height: 1.6;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.detailBlock {
+  padding: 16px;
+  border-radius: 10px;
+}
+
+.detailHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.detailLabel {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.detailValue {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.barTrack {
+  height: 6px;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+}
+
+.detailDesc {
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.flagBlock {
+  padding: 14px;
+  border-radius: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.flagDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 99px;
+  margin-top: 6px;
+  flex: 0 0 8px;
+}
+
+.flagLabel {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.flagSub {
+  font-size: 12px;
+  margin-top: 2px;
+  line-height: 1.5;
+}
+
+.sectionHead {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.sourcesList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sourceRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.sourceDetail {
+  font-size: 12.5px;
+}

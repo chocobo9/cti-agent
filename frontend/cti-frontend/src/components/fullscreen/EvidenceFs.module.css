@@ -1,0 +1,116 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.sectionHead {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.evidenceOl {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.evidenceLi {
+  padding: 10px 14px;
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.stepNumber {
+  width: 22px;
+  height: 22px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+  flex: 0 0 22px;
+}
+
+.stepText {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.columnsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+}
+
+.pathList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pathCard {
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.pathHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pathTemplate {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.pathSummary {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.chunkCard {
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.chunkHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.chunkSource {
+  font-size: 10.5px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.chunkId {
+  font-size: 10.5px;
+}
+
+.chunkScore {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.chunkSnippet {
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.55;
+}

@@ -1,0 +1,118 @@
+.container {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: #0d0f12;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  flex: 0 0 26px;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #ececea;
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.headerRow {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.domainName {
+  font-family: 'Geist Mono', 'SF Mono', 'Fira Code', monospace;
+  font-size: 18px;
+  font-weight: 600;
+  color: #0d0f12;
+  letter-spacing: -0.3px;
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.metricLabel {
+  font-size: 10.5px;
+  color: #9ea1a9;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.metricValue {
+  font-size: 13.5px;
+  font-family: 'Geist Mono', 'SF Mono', 'Fira Code', monospace;
+  color: #0d0f12;
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+.evidenceWarning {
+  font-size: 12px;
+  color: #8a5a00;
+  background: #fff3d6;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.narrative {
+  border-top: 1px solid #ececea;
+  padding-top: 12px;
+  font-size: 13px;
+  color: #3a3d44;
+  line-height: 1.55;
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chipPrimary {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 0;
+  background: #3b5bdb;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 500;
+}
+
+.chipSecondary {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 1px solid #e4e4e0;
+  background: #ffffff;
+  color: #0d0f12;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 500;
+}

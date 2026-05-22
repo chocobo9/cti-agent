@@ -1,0 +1,32 @@
+.container {
+  align-self: flex-end;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  max-width: 85%;
+}
+
+.bubble {
+  background: #0d0f12;
+  color: #fff;
+  padding: 9px 14px;
+  border-radius: 16px;
+  border-bottom-right-radius: 6px;
+  font-size: 14px;
+  max-width: 460px;
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 99px;
+  background: #dfe1e6;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #3a3d44;
+  margin-top: 2px;
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+}

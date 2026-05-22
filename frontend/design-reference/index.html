@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8"/>
+<title>CTI-Agent · 4 design directions</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --cti-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --cti-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --cti-serif: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  }
+  html, body { margin: 0; padding: 0; background: #f0eee9; height: 100%; }
+  body { font-family: var(--cti-sans); }
+  *, *::before, *::after { box-sizing: border-box; }
+  /* Prevent default browser scrollbars showing inside artboards */
+  button { font-family: inherit; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="shared-intel.jsx"></script>
+<script type="text/babel" src="fullscreen.jsx"></script>
+<script type="text/babel" src="v2-workspace.jsx"></script>
+<script type="text/babel" src="v1-classic.jsx"></script>
+
+<script type="text/babel">
+function App() {
+  // 1440x900 — typical laptop frame
+  const W = 1440, H = 900;
+  return (
+    <DesignCanvas>
+      <DCSection
+        id="cti-agent"
+        title="CTI-Agent · Frontend (backend-aligned)"
+        subtitle="基于真实 AttributionState · 6-node LangGraph · confidence/temporal/candidate actors/evidence chain · 双击放大"
+      >
+        <DCArtboard id="v1" label="V1 · Classic — chat + tabbed artifact (原型)" width={W} height={H}>
+          <V1Classic right="tabs"/>
+        </DCArtboard>
+        <DCArtboard id="v1b" label="V1.b · Hybrid — V1 chat + V2 pinboard (推荐)" width={W} height={H}>
+          <V1Classic right="pinboard"/>
+        </DCArtboard>
+        <DCArtboard id="v1c" label="V1.c · with inline graph — Candidates 卡顶部加 mini node-edge 图" width={W} height={H}>
+          <V1Classic right="pinboard" withGraph/>
+        </DCArtboard>
+        <DCArtboard id="v2" label="V2 · Workspace — case-driven 3-column (参考)" width={W} height={H}>
+          <V2Workspace/>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

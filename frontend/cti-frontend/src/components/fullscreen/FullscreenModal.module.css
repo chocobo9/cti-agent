@@ -1,0 +1,74 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  background: rgba(13, 17, 36, 0.45);
+  backdrop-filter: blur(3px);
+  display: grid;
+  place-items: center;
+  animation: fcfade 0.12s ease-out;
+}
+
+@keyframes fcfade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.dialog {
+  width: min(1100px, 92%);
+  max-height: 88%;
+  border-radius: 14px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.headerBar {
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.headerIcon {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+}
+
+.headerTitleWrap {
+  flex: 1;
+}
+
+.headerTag {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.headerTitle {
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: -1px;
+}
+
+.closeBtn {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 28px 28px;
+}

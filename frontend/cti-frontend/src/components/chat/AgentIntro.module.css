@@ -1,0 +1,27 @@
+.container {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: #0d0f12;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  flex: 0 0 26px;
+}
+
+.body {
+  flex: 1;
+  padding-top: 2px;
+}
+
+.text {
+  font-size: 13px;
+  color: #3a3d44;
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+}
