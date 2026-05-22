@@ -47,8 +47,28 @@ def _get_graph():
     return _graph
 
 
+_rag_warmed_up = False
+
+
+def _warmup_rag_pipeline():
+    """Pre-load embedding and reranker models so the first query is fast."""
+    global _rag_warmed_up
+    if _rag_warmed_up:
+        return
+    try:
+        from rag_cti import _default_pipeline
+        logger.info("Warming up RAG pipeline (embedding + reranker models)...")
+        _default_pipeline()
+        logger.info("RAG pipeline ready.")
+    except Exception:
+        logger.exception("RAG pipeline warmup failed — models will load on first query")
+    _rag_warmed_up = True
+
+
 @cl.on_chat_start
 async def on_start():
+    import asyncio
+    await asyncio.to_thread(_warmup_rag_pipeline)
     await cl.Message(content="CTI Attribution Agent ready. Send a query or use `/enrich <domain>` to collect OSINT data.").send()
 
 

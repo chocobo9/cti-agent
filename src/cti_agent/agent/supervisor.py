@@ -29,12 +29,12 @@ _DOMAIN_RE = re.compile(r"[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(?:\.[a-zA-Z0-9][-a-zA-Z0
 
 @lru_cache(maxsize=1)
 def _get_llm():
-    from langchain_deepseek import ChatDeepSeek
+    from langchain_groq import ChatGroq
 
-    api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+    api_key = os.environ.get("GROQ_API_KEY", "")
     if not api_key:
-        raise RuntimeError("DEEPSEEK_API_KEY environment variable is not set")
-    return ChatDeepSeek(model="deepseek-chat", api_key=api_key)
+        raise RuntimeError("GROQ_API_KEY environment variable is not set")
+    return ChatGroq(model="llama-3.3-70b-versatile", api_key=api_key)
 
 
 @retry(
@@ -82,6 +82,13 @@ def supervisor_query_analysis_node(state: dict) -> dict:
     except Exception:
         logger.exception("Query analysis LLM call failed, using fallback")
         analysis = _fallback_analysis(query)
+
+    if analysis.target_domain:
+        cleaned = re.sub(r'\[\.\]', '.', analysis.target_domain)
+        cleaned = re.sub(r'^https?://', '', cleaned, flags=re.IGNORECASE)
+        cleaned = cleaned.split('/')[0].split('?')[0].split('#')[0].lower().strip('.')
+        if cleaned != analysis.target_domain:
+            analysis = analysis.model_copy(update={"target_domain": cleaned})
 
     query_type = determine_query_type(analysis)
     templates = select_templates(analysis)

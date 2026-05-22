@@ -186,7 +186,7 @@ def assemble_report(state: dict) -> AttributionReport:
         domain=state.get("domain"),
         query_type=state.get("query_type", "unknown"),
         attribution_result=classify_attribution_result(confidence),
-        primary_actor=candidates[0].get("actor_name") if candidates else None,
+        primary_actor=candidates[0].get("actor_name") if candidates and classify_attribution_result(confidence) != "insufficient" else None,
         candidate_actors=candidates,
         confidence=round(confidence, 3),
         temporal_confidence=round(state.get("temporal_confidence", 0.5), 3),
