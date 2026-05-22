@@ -175,21 +175,19 @@ async def intelligence_agent_node(state: dict) -> dict:
 
     queries = await asyncio.to_thread(_rewrite_queries, state)
 
-    retrieval_tasks = [
-        asyncio.to_thread(_retrieve_per_query, q)
+    results_lists = [
+        await asyncio.to_thread(_retrieve_per_query, q)
         for q in queries
     ]
-    results_lists = await asyncio.gather(*retrieval_tasks)
 
     merged = _rrf_merge(list(results_lists))
 
     if not merged and rag_hints:
         logger.info("Primary retrieval empty, falling back to rag_hints")
-        fallback_tasks = [
-            asyncio.to_thread(_retrieve_per_query, hint)
+        fallback_results = [
+            await asyncio.to_thread(_retrieve_per_query, hint)
             for hint in rag_hints[:_MAX_QUERIES]
         ]
-        fallback_results = await asyncio.gather(*fallback_tasks)
         merged = _rrf_merge(list(fallback_results))
         queries = rag_hints[:_MAX_QUERIES]
 

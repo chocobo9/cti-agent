@@ -99,4 +99,6 @@ REPORT_NARRATIVE_USER_TEMPLATE = """\
 ## Intelligence Evidence
 {intelligence_evidence}
 
-Based on the above data and the report writing guidelines in your system prompt, write a complete attribution report."""
+Based on the above data and the report writing guidelines in your system prompt, write a complete attribution report.
+
+IMPORTANT: Write the report in the SAME language as the user's query above. If the query is in English, the ENTIRE report must be in English. Do not mix languages."""
