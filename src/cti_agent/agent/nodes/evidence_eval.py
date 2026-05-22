@@ -58,7 +58,7 @@ def _get_llm():
     api_key = os.environ.get("DEEPSEEK_API_KEY", "")
     if not api_key:
         raise RuntimeError("DEEPSEEK_API_KEY environment variable is not set")
-    return ChatDeepSeek(model="deepseek-chat", api_key=api_key)
+    return ChatDeepSeek(model="deepseek-chat", api_key=api_key, temperature=0)
 
 
 @retry(
