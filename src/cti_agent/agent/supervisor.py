@@ -29,12 +29,12 @@ _DOMAIN_RE = re.compile(r"[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(?:\.[a-zA-Z0-9][-a-zA-Z0
 
 @lru_cache(maxsize=1)
 def _get_llm():
-    from langchain_groq import ChatGroq
+    from langchain_deepseek import ChatDeepSeek
 
-    api_key = os.environ.get("GROQ_API_KEY", "")
+    api_key = os.environ.get("DEEPSEEK_API_KEY", "")
     if not api_key:
-        raise RuntimeError("GROQ_API_KEY environment variable is not set")
-    return ChatGroq(model="llama-3.3-70b-versatile", api_key=api_key)
+        raise RuntimeError("DEEPSEEK_API_KEY environment variable is not set")
+    return ChatDeepSeek(model="deepseek-chat", api_key=api_key, temperature=0)
 
 
 @retry(
@@ -50,21 +50,36 @@ def call_query_analysis(llm: Any, query: str) -> QueryAnalysis:
     ])
 
 
+_IP_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+
+
 def _fallback_analysis(query: str) -> QueryAnalysis:
     """Regex-based fallback when LLM structured output fails."""
-    domain_match = _DOMAIN_RE.search(query)
-    target_domain = domain_match.group(0) if domain_match else None
+    cleaned = re.sub(r"\[\.\]", ".", query)
 
-    intent = "attribute_domain" if target_domain else "general_cti_query"
+    domain_match = _DOMAIN_RE.search(cleaned)
+    target_domain = domain_match.group(0).lower() if domain_match else None
+
+    ips = _IP_RE.findall(cleaned)
+
+    if target_domain:
+        intent = "attribute_domain"
+    elif ips:
+        intent = "find_related_infrastructure"
+    else:
+        intent = "general_cti_query"
+
     logger.warning(
-        "LLM structured output failed, using regex fallback: intent=%s domain=%s",
+        "LLM structured output failed, using regex fallback: intent=%s domain=%s ips=%s",
         intent,
         target_domain,
+        ips,
     )
     return QueryAnalysis(
         intent=intent,
         target_domain=target_domain,
-        reasoning=f"Fallback: regex extracted domain={target_domain}",
+        mentioned_ips=ips,
+        reasoning=f"Fallback: domain={target_domain}, ips={ips}",
     )
 
 
